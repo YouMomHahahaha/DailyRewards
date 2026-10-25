@@ -176,7 +176,7 @@ public class DailyRewards extends JavaPlugin implements Listener, CommandExecuto
     private void claim(Player player, RewardMenu menu) {
         long now = System.currentTimeMillis();
         if (isOnCooldown(player, now)) {
-            getServer().getScheduler().runTask(this, player::closeInventory);
+            getServer().getScheduler().runTask(this, () -> player.closeInventory());
             player.sendMessage(error());
             return;
         }
@@ -192,7 +192,7 @@ public class DailyRewards extends JavaPlugin implements Listener, CommandExecuto
                 player.getWorld().dropItemNaturally(player.getLocation(), rest);
             }
         }
-        getServer().getScheduler().runTask(this, player::closeInventory);
+        getServer().getScheduler().runTask(this, () -> player.closeInventory());
         player.sendMessage(Component.text("¡Reclamaste tu recompensa del día " + menu.day + "!", NamedTextColor.GREEN));
         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f);
     }
