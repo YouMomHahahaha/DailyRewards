@@ -1,0 +1,14 @@
+name: DailyRewards
+version: 1.0
+main: me.avrgknye.dailyrewards.DailyRewards
+api-version: '1.21'
+description: Recompensas diarias con rachas
+commands:
+  reward:
+    description: Abre el menu de recompensa diaria
+    usage: /reward
+    aliases: [recompensa]
+permissions:
+  dailyrewards.admin:
+    description: Comandos de prueba
+    default: op
