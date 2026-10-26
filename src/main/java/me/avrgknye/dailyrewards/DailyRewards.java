@@ -18,6 +18,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
@@ -37,6 +38,7 @@ public class DailyRewards extends JavaPlugin implements Listener, CommandExecuto
     private static final long DAY_MS = 24L * 60 * 60 * 1000;
     private static final int MAX_TEST_DAY = 999;
     private static final int BOOKS_AFTER_DAY_8 = 1;
+    private static final long JOIN_MESSAGE_DELAY_TICKS = 200L; // 200 ticks = 10 segundos
     private static final int CLAIM_SLOT = 31;
     private static final int[] REWARD_SLOTS = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25};
 
@@ -171,6 +173,56 @@ public class DailyRewards extends JavaPlugin implements Listener, CommandExecuto
     @EventHandler
     public void onDrag(InventoryDragEvent e) {
         if (e.getInventory().getHolder() instanceof RewardMenu) e.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        Player player = e.getPlayer();
+        // se espera unos segundos para que el jugador alcance a iniciar sesión (AuthMe)
+        getServer().getScheduler().runTaskLater(this, () -> {
+            if (player.isOnline()) sendStatus(player);
+        }, JOIN_MESSAGE_DELAY_TICKS);
+    }
+
+    private void sendStatus(Player player) {
+        long now = System.currentTimeMillis();
+        String key = player.getUniqueId().toString();
+        long last = data.getLong(key + ".last", 0L);
+        int lastDay = data.getInt(key + ".day", 0);
+
+        // todavía no puede reclamar: avisa cuánto falta
+        if (last > 0 && now - last < DAY_MS) {
+            long ms = DAY_MS - (now - last);
+            long hours = ms / 3_600_000L;
+            long minutes = (ms % 3_600_000L) / 60_000L;
+            player.sendMessage(Component.text(
+                "Tu próxima recompensa estará lista en " + hours + " h " + minutes + " min.",
+                NamedTextColor.YELLOW));
+            return;
+        }
+
+        // pasaron más de 48 horas: perdió la racha
+        if (last > 0 && now - last >= 2 * DAY_MS) {
+            if (lastDay >= 2) {
+                player.sendMessage(Component.text(
+                    "Perdiste tu racha de " + lastDay + " días.", NamedTextColor.RED));
+            }
+            player.sendMessage(Component.text(
+                "Tu recompensa del día 1 está lista. Reclámala con /reward", NamedTextColor.GREEN));
+            return;
+        }
+
+        // recompensa lista (primera vez o racha activa)
+        int day = nextDay(player, now);
+        player.sendMessage(Component.text(
+            "Tu recompensa del día " + day + " está lista. Reclámala con /reward", NamedTextColor.GREEN));
+
+        if (last > 0) {
+            long msLeft = 2 * DAY_MS - (now - last);
+            String left = msLeft >= 3_600_000L ? (msLeft / 3_600_000L) + " h" : "menos de 1 hora";
+            player.sendMessage(Component.text(
+                "Te quedan " + left + " para reclamarla sin perder tu racha.", NamedTextColor.GOLD));
+        }
     }
 
     private void claim(Player player, RewardMenu menu) {
